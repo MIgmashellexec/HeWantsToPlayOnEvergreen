@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schach-Decoder: Immergrüne Partie</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --highlight: #f59e0b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        h1, h2, h3 {
+            color: var(--text-color);
+            margin-top: 0;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+        }
+
+        .search-box {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: #0f172a;
+            color: var(--text-color);
+            font-size: 1.1rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            color: var(--accent-color);
+        }
+
+        .result-item {
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .badge {
+            background-color: var(--accent-color);
+            color: #0f172a;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .rotations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .rot-item {
+            background: #0f172a;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .rot-label {
+            color: var(--text-muted);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #0f172a;
+            color: var(--accent-color);
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>♟️ Immergrüne Partie – Decoder</h1>
+        <p>Interaktives Decoding der Züge und Buchstabe-Zuordnungen mit Rotations-Analyse</p>
+    </div>
+
+    <div class="search-box">
+        <label for="searchInput" style="display:block; margin-bottom: 8px; font-weight: bold;">Eingabe (Zug, Buchstabe A-AU, oder Notation):</label>
+        <input type="text" id="searchInput" placeholder="z. B. A, AU, Sf6+, 17, oder Text zum Rotieren..." autofocus>
+    </div>
+
+    <div class="grid">
+        <!-- Variante 1 -->
+        <div class="card">
+            <h2>Variante 1: Ganzzüge (A – X)</h2>
+            <div id="resVar1">Bitte etwas eingeben...</div>
+        </div>
+
+        <!-- Variante 2 -->
+        <div class="card">
+            <h2>Variante 2: Halbzüge (A – AU)</h2>
+            <div id="resVar2">Bitte etwas eingeben...</div>
+        </div>
+    </div>
+
+    <!-- Rotationen -->
+    <div class="card" style="margin-bottom: 25px;">
+        <h2>Rotationen (Caesar-Verschiebung ROT-1 bis ROT-25)</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">
+            Zeigt das Ergebnis der eingegebenen oder ermittelten Buchstaben in allen 25 Alphabet-Rotationen:
+        </p>
+        <div id="rotationsOutput" class="rotations-grid">
+            <span style="color: var(--text-muted);">Keine Buchstaben zum Rotieren vorhanden.</span>
+        </div>
+    </div>
+
+    <!-- Referenztabelle -->
+    <div class="card">
+        <h2>Vollständige Übersichtstabelle</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Weiß</th>
+                        <th>Schwarz</th>
+                        <th>Var. 1 (Ganzzug)</th>
+                        <th>Var. 2 (Weiß / Schwarz)</th>
+                    </tr>
+                </thead>
+                <tbody id="gameTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Partiedaten der "Immergrünen Partie"
+    const movesData = [
+        { num: 1, w: "e4", b: "e5", v1: "A", v2_w: "A", v2_b: "B" },
+        { num: 2, w: "Sf3", b: "Sc6", v1: "B", v2_w: "C", v2_b: "D" },
+        { num: 3, w: "Lc4", b: "Lc5", v1: "C", v2_w: "E", v2_b: "F" },
+        { num: 4, w: "b4", b: "Lxb4", v1: "D", v2_w: "G", v2_b: "H" },
+        { num: 5, w: "c3", b: "La5", v1: "E", v2_w: "I", v2_b: "J" },
+        { num: 6, w: "d4", b: "exd4", v1: "F", v2_w: "K", v2_b: "L" },
+        { num: 7, w: "O-O", b: "d3", v1: "G", v2_w: "M", v2_b: "N" },
+        { num: 8, w: "Db3", b: "Df6", v1: "H", v2_w: "O", v2_b: "P" },
+        { num: 9, w: "e5", b: "Dg6", v1: "I", v2_w: "Q", v2_b: "R" },
+        { num: 10, w: "Te1", b: "Sge7", v1: "J", v2_w: "S", v2_b: "T" },
+        { num: 11, w: "La3", b: "b5", v1: "K", v2_w: "U", v2_b: "V" },
+        { num: 12, w: "Dxb5", b: "Tb8", v1: "L", v2_w: "W", v2_b: "X" },
+        { num: 13, w: "Da4", b: "Lb6", v1: "M", v2_w: "Y", v2_b: "Z" },
+        { num: 14, w: "Sbd2", b: "Lb7", v1: "N", v2_w: "AA", v2_b: "AB" },
+        { num: 15, w: "Se4", b: "Df5", v1: "O", v2_w: "AC", v2_b: "AD" },
+        { num: 16, w: "Lxd3", b: "Dh5", v1: "P", v2_w: "AE", v2_b: "AF" },
+        { num: 17, w: "Sf6+", b: "gxf6", v1: "Q", v2_w: "AG", v2_b: "AH" },
+        { num: 18, w: "exf6", b: "Tg8", v1: "R", v2_w: "AI", v2_b: "AJ" },
+        { num: 19, w: "Tad1", b: "Dxf3", v1: "S", v2_w: "AK", v2_b: "AL" },
+        { num: 20, w: "Txe7+", b: "Sxe7", v1: "T", v2_w: "AM", v2_b: "AN" },
+        { num: 21, w: "Dxd7+", b: "Kxd7", v1: "U", v2_w: "AO", v2_b: "AP" },
+        { num: 22, w: "Lf5+", b: "Ke8", v1: "V", v2_w: "AQ", v2_b: "AR" },
+        { num: 23, w: "Ld7+", b: "Kf8", v1: "W", v2_w: "AS", v2_b: "AT" },
+        { num: 24, w: "Lxe7#", b: "", v1: "X", v2_w: "AU", v2_b: "" }
+    ];
+
+    // Tabelle initial befüllen
+    const tbody = document.getElementById('gameTable');
+    movesData.forEach(m => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${m.num}.</strong></td>
+            <td>${m.w}</td>
+            <td>${m.b}</td>
+            <td><span class="badge">${m.v1}</span></td>
+            <td><span class="badge">${m.v2_w}</span> / ${m.v2_b ? `<span class="badge">${m.v2_b}</span>` : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Caesar-Rotationsfunktion
+    function rotateString(text, shift) {
+        return text.toUpperCase().replace(/[A-Z]/g, char => {
+            const code = char.charCodeAt(0);
+            return String.fromCharCode(((code - 65 + shift) % 26) + 65);
+        });
+    }
+
+    // Decoder Logik
+    function decodeInput() {
+        const query = document.getElementById('searchInput').value.trim().toUpperCase();
+        const resVar1 = document.getElementById('resVar1');
+        const resVar2 = document.getElementById('resVar2');
+        const rotOutput = document.getElementById('rotationsOutput');
+
+        if (!query) {
+            resVar1.innerHTML = 'Bitte etwas eingeben...';
+            resVar2.innerHTML = 'Bitte etwas eingeben...';
+            rotOutput.innerHTML = '<span style="color: var(--text-muted);">Keine Buchstaben zum Rotieren vorhanden.</span>';
+            return;
+        }
+
+        let v1Results = [];
+        let v2Results = [];
+        let extractedLetters = [];
+
+        // 1. Suche nach Zugnummer (z. B. "17")
+        if (!isNaN(query)) {
+            const moveNum = parseInt(query);
+            const m = movesData.find(x => x.num === moveNum);
+            if (m) {
+                v1Results.push(`Zug ${m.num}: <b>${m.w} ${m.b}</b> ➔ Code: <span class="badge">${m.v1}</span>`);
+                v2Results.push(`Zug ${m.num} Weiß (${m.w}): <span class="badge">${m.v2_w}</span>`);
+                if(m.v2_b) v2Results.push(`Zug ${m.num} Schwarz (${m.b}): <span class="badge">${m.v2_b}</span>`);
+                extractedLetters.push(m.v1);
+            }
+        } 
+
+        // 2. Suche nach Treffern in den Daten
+        movesData.forEach(m => {
+            // Variante 1 Check
+            if (m.v1 === query) {
+                v1Results.push(`Code <b>${m.v1}</b> ➔ Zug ${m.num}: <b>${m.w} ${m.b}</b>`);
+                extractedLetters.push(m.v1);
+            }
+
+            // Variante 2 Check (Halbzüge)
+            if (m.v2_w === query) {
+                v2Results.push(`Code <b>${m.v2_w}</b> ➔ Zug ${m.num} (Weiß): <b>${m.w}</b>`);
+                extractedLetters.push(m.v2_w);
+            }
+            if (m.v2_b === query) {
+                v2Results.push(`Code <b>${m.v2_b}</b> ➔ Zug ${m.num} (Schwarz): <b>${m.b}</b>`);
+                extractedLetters.push(m.v2_b);
+            }
+
+            // Schachnotation-Check (z.B. "Sf6+" oder "e4")
+            if (m.w.toUpperCase() === query || m.b.toUpperCase() === query) {
+                const isWhite = m.w.toUpperCase() === query;
+                v1Results.push(`Zug <b>${query}</b> gehört zu Ganzzug ${m.num} ➔ Code: <span class="badge">${m.v1}</span>`);
+                v2Results.push(`Zug <b>${query}</b> ➔ Halbzug-Code: <span class="badge">${isWhite ? m.v2_w : m.v2_b}</span>`);
+                extractedLetters.push(isWhite ? m.v2_w : m.v2_b);
+            }
+        });
+
+        // Ergebnisse anzeigen
+        resVar1.innerHTML = v1Results.length > 0 ? 
+            v1Results.map(r => `<div class="result-item">${r}</div>`).join('') : 
+            `<span style="color: var(--text-muted)">Kein direkter Treffer in Ganzzügen</span>`;
+
+        resVar2.innerHTML = v2Results.length > 0 ? 
+            v2Results.map(r => `<div class="result-item">${r}</div>`).join('') : 
+            `<span style="color: var(--text-muted)">Kein direkter Treffer in Halbzügen</span>`;
+
+        // Rotationen berechnen
+        // Falls direkte Treffer vorhanden sind, nutze deren Buchstaben, sonst die Roheingabe
+        let textToRotate = extractedLetters.join('') || query;
+        // Entferne Sonderzeichen für die Rotation
+        textToRotate = textToRotate.replace(/[^A-Z]/g, '');
+
+        if (textToRotate) {
+            let rotHTML = '';
+            for (let i = 1; i <= 25; i++) {
+                rotHTML += `
+                    <div class="rot-item">
+                        <span class="rot-label">ROT-${i.toString().padStart(2, '0')}:</span>
+                        <strong>${rotateString(textToRotate, i)}</strong>
+                    </div>
+                `;
+            }
+            rotOutput.innerHTML = rotHTML;
+        } else {
+            rotOutput.innerHTML = '<span style="color: var(--text-muted);">Keine rotierbaren Buchstaben gefunden.</span>';
+        }
+    }
+
+    document.getElementById('searchInput').addEventListener('input', decodeInput);
+</script>
+
+</body>
+</html>
